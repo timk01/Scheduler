@@ -5,7 +5,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import taskplanner.scheduler.TimeRestrictions;
-import taskplanner.scheduler.UserTasks;
+import taskplanner.scheduler.dto.UserTasks;
 
 import java.util.List;
 
