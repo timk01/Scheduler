@@ -1,4 +1,4 @@
-package taskplanner.scheduler.dto;
+package taskplanner.scheduler.dto.planner;
 
 public enum TaskStatus {
     CREATED,

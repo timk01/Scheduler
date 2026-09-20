@@ -21,7 +21,7 @@ public class SchedulerMainConfig {
     @Bean
     public RestClient restClient() {
         return RestClient.builder()
-                .baseUrl("http://localhost:8080")
+                .baseUrl(URL)
                 .build();
     }
 }

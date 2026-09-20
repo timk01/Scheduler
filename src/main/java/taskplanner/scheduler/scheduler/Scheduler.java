@@ -6,7 +6,9 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import taskplanner.scheduler.dto.UserTasks;
+import taskplanner.scheduler.dto.planner.UserTasks;
+import taskplanner.scheduler.dto.report.UserReport;
+import taskplanner.scheduler.dto.summarization.response.SummarizationResponse;
 import taskplanner.scheduler.service.ReportService;
 import taskplanner.scheduler.TimeRestrictions;
 import tools.jackson.databind.ObjectMapper;
@@ -33,20 +35,19 @@ public class Scheduler {
     public void getUserTasks() {
         TimeRestrictions timeRestrictions = calculateTimeRestrictions();
 
-        List<UserTasks> userTasks
-                = service.getReportDetails(timeRestrictions);
+        List<UserReport> userReports = service.getUserReports(timeRestrictions);
 
         ObjectMapper objectMapper = new ObjectMapper();
         log.info(
                 "Scheduled report data: {}",
-                objectMapper.writeValueAsString(userTasks)
+                objectMapper.writeValueAsString(userReports)
         );
     }
 
-/*    @EventListener(ApplicationReadyEvent.class)
-    public void testReport() {
+    @EventListener(ApplicationReadyEvent.class)
+    public void runOnce() throws InterruptedException {
         getUserTasks();
-    }*/
+    }
 
     private TimeRestrictions calculateTimeRestrictions() {
         ZonedDateTime now = ZonedDateTime.now(clock);
