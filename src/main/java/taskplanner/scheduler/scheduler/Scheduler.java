@@ -6,9 +6,10 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import taskplanner.scheduler.dto.report.UserReport;
-import taskplanner.scheduler.service.ReportService;
 import taskplanner.scheduler.TimeRestrictions;
+import taskplanner.scheduler.dto.report.UserReport;
+import taskplanner.scheduler.service.KafkaService;
+import taskplanner.scheduler.service.ReportService;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
@@ -23,28 +24,29 @@ import static taskplanner.scheduler.config.SchedulerMainConfig.TIME_ZONE;
 public class Scheduler {
 
     private static final int REPORT_HOUR = 23;
-    private static final String PREFERRED_SCHEDULE = "0 46 15 * * ?";//"0 0 " + REPORT_HOUR + " * * ?";
+    private static final String PREFERRED_SCHEDULE = "0 0 " + REPORT_HOUR + " * * ?";
 
     private final Clock clock;
 
-    private final ReportService service;
+    private final ReportService reportService;
+
+    private final KafkaService kafkaService;
 
     @Scheduled(cron = PREFERRED_SCHEDULE, zone = TIME_ZONE)
-    public void getUserTasks() {
+    public void processUserTasks() {
         TimeRestrictions timeRestrictions = calculateTimeRestrictions();
 
-        List<UserReport> userReports = service.getUserReports(timeRestrictions);
+        List<UserReport> reports = reportService.getUserReports(timeRestrictions);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        log.info(
-                "Scheduled report data: {}",
-                objectMapper.writeValueAsString(userReports)
-        );
+        for (UserReport report : reports) {
+            kafkaService.sendMessage(report);
+            log.info("Email: {}\n{}", report.email(), report.summarization());
+        }
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void runOnce() throws InterruptedException {
-        getUserTasks();
+        processUserTasks();
     }
 
     private TimeRestrictions calculateTimeRestrictions() {
