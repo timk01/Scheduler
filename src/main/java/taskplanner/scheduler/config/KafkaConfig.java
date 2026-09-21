@@ -16,7 +16,8 @@ public class KafkaConfig {
     public ConcurrentMessageListenerContainer<String, SummarizationResponse> replyContainer(
             ConcurrentKafkaListenerContainerFactory<String, SummarizationResponse> factory
     ) {
-        var container = factory.createContainer(KafkaTopics.SUMMARIZATION_REPLIES);
+        ConcurrentMessageListenerContainer<String, SummarizationResponse> container
+                = factory.createContainer(KafkaTopics.SUMMARIZATION_REPLIES);
 
         container.setAutoStartup(false);
 

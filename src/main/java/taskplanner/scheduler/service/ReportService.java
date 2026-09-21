@@ -6,13 +6,15 @@ import org.springframework.web.client.RestClient;
 import taskplanner.scheduler.TimeRestrictions;
 import taskplanner.scheduler.dto.planner.PlannerTaskResponse;
 import taskplanner.scheduler.dto.planner.TaskStatus;
-import taskplanner.scheduler.dto.planner.UserTasks;
+import taskplanner.scheduler.dto.planner.UserTask;
 import taskplanner.scheduler.dto.report.UserReport;
 import taskplanner.scheduler.dto.summarization.request.SummarizationRequest;
 import taskplanner.scheduler.dto.summarization.request.TaskRequest;
 import taskplanner.scheduler.dto.summarization.request.TaskStatusRequestEnum;
 import taskplanner.scheduler.dto.summarization.response.SummarizationResponse;
+import taskplanner.scheduler.mapper.TaskMapper;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +25,7 @@ public class ReportService {
 
     private final RestClient restClient;
     private final KafkaService kafkaService;
+    private final TaskMapper taskMapper;
 
     public List<UserReport> getUserReports(TimeRestrictions timeRestrictions) {
 /*        List<UserTasks> userTasks = restClient.get()
@@ -33,11 +36,11 @@ public class ReportService {
                         .build()
                 )
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<UserTasks>>() {
+                .body(new ParameterizedTypeReference<List<UserTask>>() {
                 });*/
 
-        List<UserTasks> userTasks = List.of(
-                new UserTasks(
+        List<UserTask> userTasks = List.of(
+                new UserTask(
                         1L,
                         "user1@test.com",
                         List.of(
@@ -78,7 +81,7 @@ public class ReportService {
                         )
                 ),
 
-                new UserTasks(
+                new UserTask(
                         2L,
                         "user2@test.com",
                         List.of(
@@ -113,40 +116,14 @@ public class ReportService {
         );
 
         List<UserReport> reports = new ArrayList<>();
-        for (UserTasks userTask : userTasks) { //toDo assert ?
-            List<TaskRequest> finishedTasks = userTask.finishedTasks().stream()
-                    .map(
-                            task -> new TaskRequest(
-                                    task.header(),
-                                    task.text(),
-                                    TaskStatusRequestEnum.valueOf(task.status().name()),
-                                    task.finishedAt()
-                            )
-                    )
-                    .toList();
+        Instant from = timeRestrictions.from();
+        Instant to = timeRestrictions.to();
+        for (UserTask userTask : userTasks) {
+            SummarizationRequest request = taskMapper.toSummarizationRequest(userTask, from, to);
 
-            List<TaskRequest> unfinishedTasks = userTask.unfinishedTasks().stream()
-                    .map(
-                            task -> new TaskRequest(
-                                    task.header(),
-                                    task.text(),
-                                    TaskStatusRequestEnum.valueOf(task.status().name()),
-                                    task.finishedAt()
-                            )
-                    )
-                    .toList();
+            SummarizationResponse response = kafkaService.processSummarization(request);
 
-            SummarizationResponse summarizationResponse = kafkaService.processSummarization(
-                    new SummarizationRequest(
-                            timeRestrictions.from(),
-                            timeRestrictions.to(),
-                            finishedTasks,
-                            unfinishedTasks
-                    )
-            );
-            UserReport userReport = new UserReport(userTask.email(), summarizationResponse.report());
-
-            reports.add(userReport);
+            reports.add(taskMapper.toUserReport(userTask, response));
         }
 
         return reports;
