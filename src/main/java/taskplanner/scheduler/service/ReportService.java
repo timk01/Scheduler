@@ -2,6 +2,7 @@ package taskplanner.scheduler.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -25,6 +26,12 @@ public class ReportService {
     private final KafkaService kafkaService;
     private final TaskMapper taskMapper;
 
+    @Value("${scheduler.auth-header}")
+    private String header;
+
+    @Value("${scheduler.auth-key}")
+    private String key;
+
     public List<UserReport> getUserReports(TimeRestrictions timeRestrictions) {
         List<UserTask> userTasks = restClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -33,6 +40,7 @@ public class ReportService {
                         .queryParam("to", timeRestrictions.to())
                         .build()
                 )
+                .header( header, key)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {
                 });

@@ -15,3 +15,7 @@ spring:
         spring.json.value.default.type: taskplanner.scheduler.dto.summarization.response.SummarizationResponse
         spring.json.trusted.packages: taskplanner.scheduler.dto.summarization.response
         spring.json.use.type.headers: false
+
+scheduler:
+  auth-header: ${SCHEDULER_AUTH_HEADER}
+  auth-key: ${SCHEDULER_AUTH_KEY}

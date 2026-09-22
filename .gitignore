@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+#... and scripts for deploy on remote serve
+deploy-*.sh
+
+# don't commit secrets and rss
+.env
