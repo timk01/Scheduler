@@ -44,10 +44,10 @@ public class Scheduler {
         }
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+/*    @EventListener(ApplicationReadyEvent.class)
     public void runOnce() throws InterruptedException {
         processUserTasks();
-    }
+    }*/
 
     private TimeRestrictions calculateTimeRestrictions() {
         ZonedDateTime now = ZonedDateTime.now(clock);
