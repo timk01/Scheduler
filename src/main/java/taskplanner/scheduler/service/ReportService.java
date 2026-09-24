@@ -45,6 +45,13 @@ public class ReportService {
                 .body(new ParameterizedTypeReference<>() {
                 });
 
+        log.info(
+                "Received {} users with tasks from Task Planner for period {} - {}",
+                userTasks.size(),
+                timeRestrictions.from(),
+                timeRestrictions.to()
+        );
+
         List<UserReport> reports = new ArrayList<>();
         Instant from = timeRestrictions.from();
         Instant to = timeRestrictions.to();
@@ -52,6 +59,8 @@ public class ReportService {
             SummarizationRequest request = taskMapper.toSummarizationRequest(userTask, from, to);
 
             SummarizationResponse response = kafkaService.processSummarization(request);
+
+            log.debug("Summarization received for user {}", userTask.userId());
 
             reports.add(taskMapper.toUserReport(userTask, response));
         }

@@ -36,11 +36,19 @@ public class Scheduler {
     public void processUserTasks() {
         TimeRestrictions timeRestrictions = calculateTimeRestrictions();
 
+        log.info(
+                "Processing reports for period from {} to {}",
+                timeRestrictions.from(),
+                timeRestrictions.to()
+        );
+
         List<UserReport> reports = reportService.getUserReports(timeRestrictions);
+
+        log.info("Prepared {} user reports", reports.size());
 
         for (UserReport report : reports) {
             kafkaService.sendMessage(report);
-            log.info("Email: {}\n{}", report.email(), report.summarization());
+            log.info("Report sent for email {}", report.email());
         }
     }
 
