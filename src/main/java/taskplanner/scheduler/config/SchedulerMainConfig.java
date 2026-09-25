@@ -1,5 +1,6 @@
 package taskplanner.scheduler.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
@@ -11,7 +12,6 @@ import java.time.ZoneId;
 public class SchedulerMainConfig {
 
     public static final String TIME_ZONE = "Europe/Moscow";
-    public static final String URL = "http://localhost:8080";
 
     @Bean
     public Clock clock() {
@@ -19,9 +19,11 @@ public class SchedulerMainConfig {
     }
 
     @Bean
-    public RestClient restClient() {
+    public RestClient restClient(
+            @Value("${task-planner.base-url}") String taskPlannerBaseUrl
+    ) {
         return RestClient.builder()
-                .baseUrl(URL)
+                .baseUrl(taskPlannerBaseUrl)
                 .build();
     }
 }

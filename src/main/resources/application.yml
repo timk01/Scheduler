@@ -1,6 +1,6 @@
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:9092
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -19,3 +19,6 @@ spring:
 scheduler:
   auth-header: ${SCHEDULER_AUTH_HEADER}
   auth-key: ${SCHEDULER_AUTH_KEY}
+
+task-planner:
+  base-url: ${TASK_PLANNER_BASE_URL:http://localhost:8080}

@@ -23,8 +23,8 @@ import static taskplanner.scheduler.config.SchedulerMainConfig.TIME_ZONE;
 @Service
 public class Scheduler {
 
-    private static final int REPORT_HOUR = 23;
-    private static final String PREFERRED_SCHEDULE = "0 0 " + REPORT_HOUR + " * * ?";
+    private static final int REPORT_HOUR = 21;
+    private static final String PREFERRED_SCHEDULE = "0 57 " + REPORT_HOUR + " * * ?";
 
     private final Clock clock;
 
@@ -52,10 +52,12 @@ public class Scheduler {
         }
     }
 
-/*    @EventListener(ApplicationReadyEvent.class)
+/*
+    @EventListener(ApplicationReadyEvent.class)
     public void runOnce() throws InterruptedException {
         processUserTasks();
-    }*/
+    }
+*/
 
     private TimeRestrictions calculateTimeRestrictions() {
         ZonedDateTime now = ZonedDateTime.now(clock);
