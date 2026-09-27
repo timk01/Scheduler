@@ -23,7 +23,11 @@ import static taskplanner.scheduler.config.SchedulerMainConfig.TIME_ZONE;
 @Service
 public class Scheduler {
 
-    private static final int REPORT_HOUR = 22;
+    /**
+     * IF scheduler time/timezone logic is changed,
+     * CHANGE SchedulerTest timing accordingly!
+     */
+    private static final int REPORT_HOUR = 23;
     private static final String PREFERRED_SCHEDULE = "0 0 " + REPORT_HOUR + " * * ?";
 
     private final Clock clock;
