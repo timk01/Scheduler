@@ -44,4 +44,5 @@ public class KafkaConfig {
     ) {
         return new KafkaTemplate<>(producerFactory);
     }
+
 }
