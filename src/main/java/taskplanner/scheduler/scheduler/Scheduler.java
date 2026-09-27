@@ -24,7 +24,7 @@ import static taskplanner.scheduler.config.SchedulerMainConfig.TIME_ZONE;
 public class Scheduler {
 
     private static final int REPORT_HOUR = 22;
-    private static final String PREFERRED_SCHEDULE = "0 57 " + REPORT_HOUR + " * * ?";
+    private static final String PREFERRED_SCHEDULE = "0 0 " + REPORT_HOUR + " * * ?";
 
     private final Clock clock;
 
