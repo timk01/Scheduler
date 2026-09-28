@@ -2,196 +2,9 @@
 
 Сервис-оркестратор для формирования ежедневных отчётов по задачам пользователей.
 
-Scheduler работает в связке с остальными сервисами Task Planner:
+Scheduler связывает Task Planner, Summarization Service и Email Sender в единую цепочку формирования и доставки ежедневного summary-отчёта.
 
-```text
-Task Planner
-    ↓ REST
-Scheduler
-    ↓ Kafka RPC
-Summarization Service
-    ↓ Kafka RPC response
-Scheduler
-    ↓ Kafka
-Email Sender
-```
-
-Раз в сутки сервис получает из Task Planner сделанные за отчётный период и оставшиеся незавершёнными задачи пользователей, передаёт их в Summarization Service для формирования текстового отчёта и отправляет готовый результат в Kafka для дальнейшей отправки пользователю по email.
-
----
-
-## Схема работы
-
-По расписанию Scheduler:
-
-1. формирует временной диапазон отчёта;
-2. запрашивает задачи пользователей у Task Planner через REST;
-3. для каждого пользователя формирует `SummarizationRequest`;
-4. отправляет запрос в Summarization Service через Kafka RPC;
-5. получает `SummarizationResponse`;
-6. формирует `UserReport`;
-7. публикует готовый отчёт в Kafka для Email Sender.
-
-```text
-@Scheduled
-    ↓
-calculate from / to
-    ↓
-GET Task Planner
-/tasks/getScheduledTasks
-    ↓
-List<UserTask>
-    ↓
-SummarizationRequest
-    ↓
-SCHEDULER_SUMMARIZATION_REQUESTS
-    ↓
-Summarization Service
-    ↓
-SCHEDULER_SUMMARIZATION_REPLIES
-    ↓
-SummarizationResponse
-    ↓
-UserReport
-    ↓
-SUMMARY_SENDING_TASKS
-    ↓
-Email Sender
-```
-
----
-
-## Расписание
-
-Scheduler запускает формирование отчётов ежедневно:
-
-```text
-23:00
-Europe/Moscow
-```
-
-Для отчёта используется интервал между `23:00` предыдущего дня и `23:00` текущего дня.
-
-Внутри приложения время рассчитывается через `Clock`, сконфигурированный для:
-
-```text
-Europe/Moscow
-```
-
----
-
-## Получение задач из Task Planner
-
-Scheduler обращается к внутренней ручке Task Planner:
-
-```http
-GET /tasks/getScheduledTasks?from={Instant}&to={Instant}
-```
-
-В ответ приходит список пользователей с их задачами:
-
-```text
-UserTask
-├── userId
-├── email
-├── finishedTasks
-└── unfinishedTasks
-```
-
-Доступ к этой ручке предназначен только для Scheduler и защищён отдельным служебным ключом.
-
-Имя HTTP-заголовка и ключ передаются через переменные окружения:
-
-```env
-SCHEDULER_AUTH_HEADER=YOUR_HEADER_NAME
-SCHEDULER_AUTH_KEY=YOUR_KEY
-```
-
-Значения должны совпадать в конфигурации Task Planner и Scheduler.
-
----
-
-## Summarization Service
-
-Для каждого пользователя Scheduler преобразует полученные задачи в:
-
-```text
-SummarizationRequest
-```
-
-Запрос содержит:
-
-```text
-from
-to
-finishedTasks
-unfinishedTasks
-```
-
-Обмен с Summarization Service реализован через Kafka по RPC-схеме.
-
-Запрос отправляется в:
-
-```text
-SCHEDULER_SUMMARIZATION_REQUESTS
-```
-
-Ответ ожидается из:
-
-```text
-SCHEDULER_SUMMARIZATION_REPLIES
-```
-
-Для request/reply взаимодействия используется `ReplyingKafkaTemplate`.
-
-Таймаут ожидания ответа:
-
-```text
-15 секунд
-```
-
-Полученный `SummarizationResponse` содержит сформированный текст отчёта.
-
----
-
-## Отправка отчёта
-
-После получения суммаризации Scheduler формирует:
-
-```text
-UserReport
-```
-
-```json
-{
-  "email": "user@example.com",
-  "summarization": "Daily task report..."
-}
-```
-
-Готовые отчёты публикуются в Kafka-топик:
-
-```text
-SUMMARY_SENDING_TASKS
-```
-
-Далее сообщение обрабатывается сервисом Email Sender, который непосредственно отправляет письмо пользователю.
-
-Scheduler сам с SMTP не работает.
-
----
-
-## Kafka topics
-
-| Topic | Назначение |
-|---|---|
-| `SCHEDULER_SUMMARIZATION_REQUESTS` | Запросы Scheduler → Summarization Service |
-| `SCHEDULER_SUMMARIZATION_REPLIES` | Ответы Summarization Service → Scheduler |
-| `SUMMARY_SENDING_TASKS` | Готовые отчёты Scheduler → Email Sender |
-
----
-
-## Используемые технологии
+## Технологии
 
 - Java 21
 - Spring Boot
@@ -203,19 +16,84 @@ Scheduler сам с SMTP не работает.
 - Gradle
 - JUnit 5
 - Mockito
+- Docker
+- Docker Compose
 
----
+## Роль в системе
+
+Scheduler является оркестратором процесса формирования ежедневного отчёта.
+
+```text
+                                      ┌───────────────────────┐
+                                      │ Summarization Service │
+                                      └──────────┬────▲───────┘
+                                                 │    │
+                                     Kafka reply │    │ Kafka request
+                                                 ▼    │
+┌──────────────┐       HTTP request          ┌───────────┐
+│ Task Planner │ ◄────────────────────────── │ Scheduler │
+│              │ ──────────────────────────► │           │
+└──────────────┘       tasks / users         └─────┬─────┘
+                                                  │
+                                                  │ Kafka:
+                                                  │ SUMMARY_SENDING_TASKS
+                                                  ▼
+                                           ┌──────────────┐
+                                           │ Email Sender │
+                                           └──────────────┘
+```
+
+По расписанию Scheduler:
+
+1. запрашивает у Task Planner завершённые и незавершённые задачи пользователей за отчётный период;
+2. передаёт данные каждого пользователя в Summarization Service;
+3. получает сформированный `SummaryResponse`;
+4. формирует `UserReport`;
+5. публикует готовый отчёт в Kafka для Email Sender.
+
+Таким образом, Scheduler управляет всей цепочкой формирования отчёта, но сам не занимается ни суммаризацией текста, ни отправкой email.
+
+## Расписание
+
+Формирование отчётов запускается ежедневно:
+
+```text
+23:00
+Europe/Moscow
+```
+
+Для отчёта используется период между `23:00` предыдущего дня и `23:00` текущего дня.
+
+## Взаимодействие с Task Planner
+
+Scheduler получает данные через внутренний endpoint Task Planner:
+
+```text
+GET /tasks/getScheduledTasks?from={Instant}&to={Instant}
+```
+
+Доступ защищён отдельным служебным ключом.
+
+Для этого используются:
+
+```env
+SCHEDULER_AUTH_HEADER=...
+SCHEDULER_AUTH_KEY=...
+```
+
+Значения должны совпадать с конфигурацией Task Planner.
 
 ## Переменные окружения
 
-Для доступа к внутреннему API Task Planner необходимо указать:
+Основные переменные окружения:
 
 ```env
-SCHEDULER_AUTH_HEADER=YOUR_HEADER_NAME
-SCHEDULER_AUTH_KEY=YOUR_KEY
-```
+SCHEDULER_AUTH_HEADER=...
+SCHEDULER_AUTH_KEY=...
 
-Реальный ключ не должен попадать в Git.
+TASK_PLANNER_BASE_URL=...
+KAFKA_BOOTSTRAP_SERVERS=...
+```
 
 Пример конфигурации находится в:
 
@@ -223,46 +101,34 @@ SCHEDULER_AUTH_KEY=YOUR_KEY
 .env.example
 ```
 
----
+Реальные секреты не должны попадать в Git.
 
-## Локальный запуск
+## Запуск всего проекта
 
-Перед запуском Scheduler должны быть доступны:
+Scheduler входит в общий Docker Compose-стек проекта.
 
-- Task Planner;
-- Kafka;
-- Summarization Service;
-- Email Sender — для полного прохождения цепочки доставки отчёта.
+Общий `compose.yml` находится в репозитории Task Planner и позволяет запустить Scheduler вместе с остальными сервисами, PostgreSQL и Kafka из готовых Docker-образов.
 
-В текущей конфигурации Scheduler ожидает:
+Инструкция по запуску всего проекта находится в README Task Planner.
 
-```text
-Task Planner → http://localhost:8080
-Kafka        → localhost:9092
-```
+## Локальная разработка
 
-После настройки переменных окружения приложение запускается через:
+Scheduler можно запускать локально отдельно от общего Docker Compose-стека.
+
+При локальном запуске используются:
 
 ```text
-SchedulerApplication
+Task Planner -> http://localhost:8080
+Kafka        -> localhost:9094
 ```
 
----
+Необходимые секреты передаются через environment variables или конфигурацию запуска IDE.
 
 ## Тесты
 
 Основная orchestration-логика покрыта unit-тестами.
 
-Проверяются:
-
-- расчёт отчётного временного диапазона;
-- получение пользовательских отчётов;
-- преобразование задач в запрос для Summarization Service;
-- обработка ответа Summarization Service;
-- формирование `UserReport`;
-- передача сформированного отчёта в Kafka-слой.
-
-Инфраструктурная механика Spring Scheduler и Kafka отдельно не дублируется unit-тестами.
+Проверяются расчёт отчётного периода, получение задач из Task Planner, взаимодействие с Summarization Service и формирование готового отчёта для Email Sender.
 
 Запуск:
 
@@ -270,36 +136,6 @@ SchedulerApplication
 ./gradlew test
 ```
 
-Для Windows:
+## CI/CD
 
-```text
-gradlew.bat test
-```
-
----
-
-## Docker
-
-Scheduler является частью многосервисного приложения и предполагается к запуску вместе с:
-
-```text
-Task Planner
-Scheduler
-Summarization Service
-Email Sender
-Kafka
-PostgreSQL
-```
-
-На текущем этапе отдельный Dockerfile для Scheduler ещё не добавлен.
-
-В дальнейшем сервис планируется упаковать в Docker-образ и включить в общий Docker Compose стек проекта вместе с остальными сервисами и инфраструктурой.
-
-Перед контейнеризацией также потребуется учитывать, что текущие адреса:
-
-```text
-http://localhost:8080
-localhost:9092
-```
-
-рассчитаны на локальный запуск. При запуске сервисов внутри Docker Compose подключения должны использовать адреса соответствующих сервисов либо передаваться через конфигурацию окружения.
+При push в `main` GitHub Actions запускает тесты, собирает Docker-образ и публикует его в Docker Hub.
