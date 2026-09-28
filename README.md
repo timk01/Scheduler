@@ -24,12 +24,12 @@ Scheduler связывает Task Planner, Summarization Service и Email Sender
 Scheduler является оркестратором процесса формирования ежедневного отчёта.
 
 ```text
-                                      ┌───────────────────────┐
-                                      │ Summarization Service │
-                                      └──────────┬────▲───────┘
-                                                 │    │
-                                     Kafka reply │    │ Kafka request
-                                                 ▼    │
+                                     ┌───────────────────────┐
+                                     │ Summarization Service │
+                                     └──────────┬────▲───────┘
+                                                │    │
+                                    Kafka reply │    │ Kafka request
+                                                ▼    │
 ┌──────────────┐       HTTP request          ┌───────────┐
 │ Task Planner │ ◄────────────────────────── │ Scheduler │
 │              │ ──────────────────────────► │           │
@@ -38,9 +38,9 @@ Scheduler является оркестратором процесса форм�
                                                   │ Kafka:
                                                   │ SUMMARY_SENDING_TASKS
                                                   ▼
-                                           ┌──────────────┐
-                                           │ Email Sender │
-                                           └──────────────┘
+                                          ┌──────────────┐
+                                          │ Email Sender │
+                                          └──────────────┘
 ```
 
 По расписанию Scheduler:
@@ -52,6 +52,14 @@ Scheduler является оркестратором процесса форм�
 5. публикует готовый отчёт в Kafka для Email Sender.
 
 Таким образом, Scheduler управляет всей цепочкой формирования отчёта, но сам не занимается ни суммаризацией текста, ни отправкой email.
+
+## Деплой
+
+Сервис является частью развёрнутого приложения:
+
+[http://77.221.141.215:5173](http://77.221.141.215:5173)
+
+Полный Docker Compose-стек развёрнут на VPS и включает все сервисы приложения, PostgreSQL и Kafka.
 
 ## Расписание
 
@@ -113,7 +121,23 @@ Scheduler входит в общий Docker Compose-стек проекта.
 
 ## Локальная разработка
 
-Scheduler можно запускать локально отдельно от общего Docker Compose-стека.
+Перед локальным запуском Scheduler необходимо сначала поднять общий Docker Compose-стек из репозитория Task Planner:
+
+```bash
+docker compose up -d
+```
+
+После этого контейнер Scheduler можно остановить:
+
+```bash
+docker compose stop scheduler
+```
+
+И запустить сервис локально из IDE или через Gradle:
+
+```bash
+./gradlew bootRun
+```
 
 При локальном запуске используются:
 
