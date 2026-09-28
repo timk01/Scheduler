@@ -40,7 +40,7 @@ public class ReportService {
                         .queryParam("to", timeRestrictions.to())
                         .build()
                 )
-                .header( header, key)
+                .header(header, key)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {
                 });

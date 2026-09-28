@@ -2,15 +2,12 @@ package taskplanner.scheduler.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import taskplanner.scheduler.TimeRestrictions;
 import taskplanner.scheduler.dto.report.UserReport;
 import taskplanner.scheduler.service.KafkaService;
 import taskplanner.scheduler.service.ReportService;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.ZonedDateTime;
